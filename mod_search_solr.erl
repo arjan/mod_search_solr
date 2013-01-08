@@ -24,7 +24,7 @@
 
 -include("zotonic.hrl").
 
--record(state, {context, solr, default_search=true}).
+-record(state, {context, solr, default_search, java_pid}).
 
 
 %%====================================================================
@@ -57,22 +57,11 @@ pid_observe_rsc_delete(Pid, Msg, _Context) ->
 %% @doc Initiates the server.
 init(Args) ->
     {context, Context} = proplists:lookup(context, Args),
-    DefaultConnection = "http://127.0.0.1:8983/solr/" ++ z_convert:to_list(z_context:site(Context)) ++ "/",
-
-    SolrUrl = m_config:get_value(?MODULE, solr, DefaultConnection, Context),
-    SearchUrl = z_convert:to_list(SolrUrl) ++ "select",
-    UpdateUrl = z_convert:to_list(SolrUrl) ++ "update",
-    {ok, Solr} = esolr:start_link([{select_url, SearchUrl}, {update_url, UpdateUrl}]),
-
-    AutoCommit = z_convert:to_integer(m_config:get_value(?MODULE, autocommit_time, 3000, Context)),
-    esolr:set_auto_commit({time, AutoCommit}, Solr),
-
+    
     DefaultSearch = z_convert:to_bool(m_config:get_value(?MODULE, default_search, false, Context)),
 
-    %% Test the connection.. this will crash when there is no valid connection
-    solr_search:match(1, {0, 1}, Solr, Context),
     %% Ready
-    {ok, #state{context=z_context:new(Context),solr=Solr,default_search=DefaultSearch}}.
+    {ok, #state{context=z_context:new(Context), default_search=DefaultSearch}, 0}.
 
 
 %% @doc A generic Solr query
@@ -97,6 +86,8 @@ handle_cast({rsc_delete, Id}, State=#state{context=Context,solr=Solr}) ->
 handle_cast(Message, State) ->
     {stop, {unknown_cast, Message}, State}.
 
+handle_info(timeout, State) ->
+    {noreply, do_startup(State)};
 
 %% @doc Handling all non call/cast messages
 handle_info(_Info, State) ->
@@ -161,3 +152,32 @@ map_search('query',[{hasobject,_}])                  -> undefined;
 map_search('query',[{hassubject,_}])                 -> undefined;
 map_search('query', Query)                           -> Query;
 map_search(_, _)                                     -> undefined.
+
+
+
+do_startup(State) ->
+    Context=State#state.context,
+    
+    %% Start java
+    case whereis(solr_java) of
+        undefined ->
+            solr_java:start_link(),
+            %% Give some time to start up, churn churn
+            timer:sleep(10000);
+        {ok, _Pid} ->
+            nop
+    end,
+
+    DefaultConnection = "http://127.0.0.1:8983/solr/" ++ z_convert:to_list(z_context:site(Context)) ++ "/",
+    SolrUrl = m_config:get_value(?MODULE, solr, DefaultConnection, Context),
+    SearchUrl = z_convert:to_list(SolrUrl) ++ "select",
+    UpdateUrl = z_convert:to_list(SolrUrl) ++ "update",
+    {ok, Solr} = esolr:start_link([{select_url, SearchUrl}, {update_url, UpdateUrl}]),
+    
+    AutoCommit = z_convert:to_integer(m_config:get_value(?MODULE, autocommit_time, 3000, Context)),
+    esolr:set_auto_commit({time, AutoCommit}, Solr),
+
+    %% Test the connection.. this will crash when there is no valid connection
+    solr_search:match(1, {0, 1}, Solr, Context),
+    
+    State#state{solr=Solr}.
