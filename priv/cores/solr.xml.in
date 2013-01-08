@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<solr persistent="false">
+  <!--
+  adminPath: RequestHandler path to manage cores.  
+    If 'null' (or absent), cores will not be manageable via request handler
+  -->
+  <cores adminPath="/admin/cores" host="${host:}" hostPort="${jetty.port:}">
+      <!-- list each site here which has solr core -->
+      <core name="example" instanceDir="example" />
+  </cores>
+</solr>
