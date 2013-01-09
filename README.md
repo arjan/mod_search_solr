@@ -4,8 +4,8 @@ SOLR support for Zotonic
 This module adds support for Solr to Zotonic. It comes with Solr built
 in: just install this module and off you go.
 
-Once set up, Zotonic will push each resource it saves into Solr as
-wel, so it can be queried on. To reindex the whole site into Solr,
+Once set up, Zotonic will push each resource it saves into Solr, so
+the database can be queried. To reindex the whole site into Solr,
 press the 'rebuild search indexes' button in the admin.
 
 
