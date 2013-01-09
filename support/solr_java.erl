@@ -62,6 +62,9 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 restart_worker(State) ->
+    %% Kill any existing solr process first..
+    os:cmd("pkill -f solr.home"),
+
     Port = erlang:open_port({spawn_executable, State#state.script}, 
                             [{line, 1024}, stderr_to_stdout, exit_status]),
     State#state{port=Port}.
