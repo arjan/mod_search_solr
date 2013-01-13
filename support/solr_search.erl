@@ -14,7 +14,11 @@
 
 %% @doc Execute a query on the solr instance.
 search(Query, {Offset, PageLen}, Solr, Context) ->
-    case map_search(Query, Context) of
+    Search = case z_notifier:first({solr_search, Query}, Context) of
+                 undefined -> map_search(Query, Context);
+                 {_, _}=S -> S
+             end,
+    case Search of
         {[], _SearchOptions} ->
             #search_result{result=[]};
         {Q, SearchOptions} ->

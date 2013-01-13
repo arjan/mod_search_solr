@@ -97,3 +97,21 @@ The following tells Solr to facet on the rsc category:
 
     {% endwith %}
 
+
+Indexing extra properties
+-------------------------
+
+By listening to the `solr_props` notification you can add extra fields
+to the indexed document. Implementing modules are expected to return
+lists of [{Key, Value}] properties, which will be indexed with the
+resource in Solr.
+
+
+Custom Solr queries
+-------------------
+
+By listening to the `{solr_search, Query}` notification you can handle
+specific cases for `m.search[{solr ...}]`.
+
+You are expected to return a `{QueryString, SolrOptions}` tuple.
+
