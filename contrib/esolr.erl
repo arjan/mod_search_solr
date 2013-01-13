@@ -223,13 +223,15 @@ init(Options) ->
 	CommitTimeout = timeout_value(commit_timeout,?ESOLR_MAX_COMMIT_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
 	OptimizeTimeout = timeout_value(optimize_timeout,?ESOLR_MAX_OPTIMIZE_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
 	SearchTimeout = timeout_value(search_timeout,?ESOLR_MAX_SEARCH_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
-				
+	DeleteTimeout = timeout_value(delete_timeout,?ESOLR_MAX_DELETE_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
+
 	inets:start(),
 	{ok,#esolr{update_url=UpdateUrl,search_url = SelectUrl, 
 		add_timeout=AddTimeout,
 		commit_timeout=CommitTimeout,
 		optimize_timeout=OptimizeTimeout,
-		search_timeout=SearchTimeout,
+        search_timeout=SearchTimeout,
+        delete_timeout=DeleteTimeout,
 		pending=gb_trees:empty()}}.
 
 
