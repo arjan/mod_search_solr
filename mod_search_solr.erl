@@ -178,6 +178,6 @@ do_startup(State) ->
     esolr:set_auto_commit({time, AutoCommit}, Solr),
 
     %% Test the connection.. this will crash when there is no valid connection
-    solr_search:match(1, {0, 1}, Solr, Context),
+    %solr_search:match(1, {0, 1}, Solr, Context),
     
     State#state{solr=Solr}.
