@@ -22,49 +22,54 @@ search(Query, {Offset, PageLen}, Solr, Context) ->
         {[], _SearchOptions} ->
             #search_result{result=[]};
         {Q, SearchOptions} ->
-            {ok, RespAttrs, Docs, Info} = esolr:search(Q, [{fields, "id"}, {start, Offset-1}, {rows, PageLen} | SearchOptions], Solr),
+            case esolr:search(Q, [{fields, "id"}, {start, Offset-1}, {rows, PageLen} | SearchOptions], Solr) of
+                {ok, RespAttrs, Docs, Info} ->
 
-            %% Get the ids
-            Ids = [Id || {doc, [{"id", Id}]} <- Docs],
+                    %% Get the ids
+                    Ids = [Id || {doc, [{"id", Id}]} <- Docs],
 
-            %% Map the extended info into a handy format
-            Info1 = filter_empty(lists:flatten([map_info(I) || I <- Info])),
+                    %% Map the extended info into a handy format
+                    Info1 = filter_empty(lists:flatten([map_info(I) || I <- Info])),
 
-            %% Decide on result format
-            Result = case Info1 of
-                         [] ->
-                             %% No extended info was returned. The result array is just a list of ids.
-                             Ids;
-                         _ ->
-                             %% If extended info was returned, the document
-                             %% ids are in the ".ids" subproperty, alongside
-                             %% the other info (e.g. facetting, highlighting)
-                             [{ids, Ids} | Info1]
-                     end,
+                    %% Decide on result format
+                    Result = case Info1 of
+                                 [] ->
+                                     %% No extended info was returned. The result array is just a list of ids.
+                                     Ids;
+                                 _ ->
+                                     %% If extended info was returned, the document
+                                     %% ids are in the ".ids" subproperty, alongside
+                                     %% the other info (e.g. facetting, highlighting)
+                                     [{ids, Ids} | Info1]
+                             end,
 
-            %% Compute paging counters
-            {"numFound", Total} = proplists:lookup("numFound", RespAttrs),
-            Pages = mochinum:int_ceil(Total / PageLen),
-            Page = mochinum:int_ceil(Offset / PageLen),
-            Next = if Offset + PageLen < Total -> false; true -> Page+1 end,
-            Prev = if Page > 1 -> Page-1; true -> 1 end,
+                    %% Compute paging counters
+                    {"numFound", Total} = proplists:lookup("numFound", RespAttrs),
+                    Pages = mochinum:int_ceil(Total / PageLen),
+                    Page = mochinum:int_ceil(Offset / PageLen),
+                    Next = if Offset + PageLen < Total -> false; true -> Page+1 end,
+                    Prev = if Page > 1 -> Page-1; true -> 1 end,
 
-            Result1 = case proplists:get_value(return_format, Query) of
-                          ranked ->
-                              %% FIXME how to retrieve the ranked value from solr?
-                              [{Id, 1.0} || Id <- Result]; 
-                          _ ->
-                              Result
-                      end,
+                    Result1 = case proplists:get_value(return_format, Query) of
+                                  ranked ->
+                                      %% FIXME how to retrieve the ranked value from solr?
+                                      [{Id, 1.0} || Id <- Result]; 
+                                  _ ->
+                                      Result
+                              end,
 
-            %% Construct the final search result
-            #search_result{result=Result1, 
-                           total=Total,
-                           pages=Pages,
-                           page=Page,
-                           next=Next,
-                           prev=Prev
-                          }
+                    %% Construct the final search result
+                    #search_result{result=Result1, 
+                                   total=Total,
+                                   pages=Pages,
+                                   page=Page,
+                                   next=Next,
+                                   prev=Prev
+                                  };
+                {error, Reason} ->
+                    lager:error("Solr search error, reason: ~p", [Reason]),
+                    #search_result{result=[], total=0}
+            end
     end.
 
 
@@ -79,13 +84,15 @@ match(Id, {_, Amount}, Solr, Context) ->
             %% "More like this id" gives us a search result with 1 doc, but
             %% the interesting stuff is in the 'morelikethis' property of the
             %% search.
-            Props = case proplists:get_value(morelikethis, Result#search_result.result) of
+            Props = case proplists:get_value(morelikethis, Result#search_result.result, {obj, []}) of
                         {obj, []} ->
                             [{"numFound", "0"}, {"docs", []}];
-                        {obj, [{IdS, {obj, Props0}}]} ->
-                            Props0
+                        {obj, [{_, {obj, Props0}}]} ->
+                            Props0;
+                        Huh ->
+                            lager:warning("Huh: ~p", [Huh]),
+                            Huh
                     end,
-
             %% Extract the matching ids and the total number found
             Ids = [DocId || {obj, [{"id", DocId}]} <- proplists:get_value("docs", Props)],
             {"numFound", Total} = proplists:lookup("numFound", Props),
@@ -145,7 +152,6 @@ map_search_field({cat, Cats}, _Context) when is_list(Cats) ->
 %% cat=category1,category2
 %% Filter results on a certain category.
 map_search_field({cat, Cat}, _Context) ->
-    ?DEBUG(Cat),
     {["+category:", as_category(Cat)],
      []};
 
@@ -282,7 +288,7 @@ map_search_field({facet, Field}, _Context) ->
 %% Give more documents which are similar to <Id>  (solr only)
 map_search_field({morelikethis_id, [Id, Amount]}, _Context) ->
     {["id:", z_convert:to_list(Id), " -category:meta"],
-     [{morelikethis, "o,match_title,summary,category", Amount}]};
+     [{morelikethis, "text", Amount}]};
 
 %% Specifying the return format. Either 'default' (empty) or 'ranked'.
 map_search_field({return_format, _}, _Context) ->
