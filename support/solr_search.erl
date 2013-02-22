@@ -14,6 +14,9 @@
 
 %% @doc Execute a query on the solr instance.
 search(Query, {Offset, PageLen}, Solr, Context) ->
+    do_search(search, Query, {Offset, PageLen}, Solr, Context).
+
+do_search(SolrFunction, Query, {Offset, PageLen}, Solr, Context) ->
     Search = case z_notifier:first({solr_search, Query}, Context) of
                  undefined -> map_search(Query, Context);
                  {_, _}=S -> S
@@ -22,7 +25,7 @@ search(Query, {Offset, PageLen}, Solr, Context) ->
         {[], _SearchOptions} ->
             #search_result{result=[]};
         {Q, SearchOptions} ->
-            case esolr:search(Q, [{fields, "id"}, {start, Offset-1}, {rows, PageLen} | SearchOptions], Solr) of
+            case esolr:SolrFunction(Q, [{fields, "id"}, {start, Offset-1}, {rows, PageLen} | SearchOptions], Solr) of
                 {ok, RespAttrs, Docs, Info} ->
 
                     %% Get the ids
@@ -72,34 +75,15 @@ search(Query, {Offset, PageLen}, Solr, Context) ->
             end
     end.
 
-
 %% @doc Given an rsc id, construct a list of matching rsc records. Uses Solrs "MoreLikeThis" feature.
-match(Id, {_, Amount}, Solr, Context) ->
+match(MatchQuery, {Offset, Pagelen}, Solr, Context) ->
+    {id, Id} = proplists:lookup(id, MatchQuery),
     case m_rsc:rid(Id, Context) of
         undefined -> #search_result{result=[], total=0};
         RscId ->
-            Result = search([{morelikethis_id, [RscId, Amount]}], {1,1}, Solr, Context),
-            IdS = z_convert:to_list(RscId),
-
-            %% "More like this id" gives us a search result with 1 doc, but
-            %% the interesting stuff is in the 'morelikethis' property of the
-            %% search.
-            Props = case proplists:get_value(morelikethis, Result#search_result.result, {obj, []}) of
-                        {obj, []} ->
-                            [{"numFound", "0"}, {"docs", []}];
-                        {obj, [{_, {obj, Props0}}]} ->
-                            Props0;
-                        Huh ->
-                            lager:warning("Huh: ~p", [Huh]),
-                            Huh
-                    end,
-            %% Extract the matching ids and the total number found
-            Ids = [DocId || {obj, [{"id", DocId}]} <- proplists:get_value("docs", Props)],
-            {"numFound", Total} = proplists:lookup("numFound", Props),
-
-            %% Construct the final result
-            #search_result{result=Ids,
-                           total=Total}
+            {QF, _} = map_search(proplists:delete(id, MatchQuery), Context),
+            Query = [{morelikethis, [RscId, "text", QF]}],
+            do_search(morelikethis, Query, {Offset, Pagelen}, Solr, Context)
     end.
 
 
@@ -286,13 +270,19 @@ map_search_field({facet, Field}, _Context) ->
 
 %% morelikethis=Id
 %% Give more documents which are similar to <Id>  (solr only)
-map_search_field({morelikethis_id, [Id, Amount]}, _Context) ->
-    {["id:", z_convert:to_list(Id), " -category:meta"],
-     [{morelikethis, "text", Amount}]};
+map_search_field({morelikethis, [Id,Fields,FQ]}, _Context) ->
+    lager:warning("FQ: ~p", [FQ]),
+	{["id:", z_convert:to_list(Id)],
+     [
+      {raw, ["mlt.fl=",Fields,"&mlt.mindf=1&mlt.mintf=1&mlt.match.include=false&fq=",z_url:url_encode(FQ)]}
+     ]
+    };
 
 %% Specifying the return format. Either 'default' (empty) or 'ranked'.
 map_search_field({return_format, _}, _Context) ->
     {[], []}.
+
+
 
 
 
@@ -304,8 +294,6 @@ map_info({"highlighting", Dict}) ->
 map_info({"facet_counts", {obj, Dict}}) ->
     {"facet_fields", {obj, F}} = proplists:lookup("facet_fields", Dict),
     {facet_fields, {obj, [{K, list_to_proplist(V)} || {K,V} <- F]}};
-map_info({"moreLikeThis", Dict}) ->
-    {morelikethis, Dict};
 map_info(_X) ->
     ?DEBUG("Unknown extended-info returned from solr!"),
     ?DEBUG(_X),

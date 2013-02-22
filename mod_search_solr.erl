@@ -115,8 +115,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 search({solr, Query}, Limit, Context, #state{solr=Solr}) ->
     solr_search:search(Query, Limit, Solr, Context);
-search({match, [{id,Id}]}, Limit, Context, #state{solr=Solr}) ->
-    solr_search:match(Id, Limit, Solr, Context);
+search({match, MatchQuery}, Limit, Context, #state{solr=Solr}) ->
+    solr_search:match(MatchQuery, Limit, Solr, Context);
 search({Type, Args}, Limit, Context, #state{default_search=true,solr=Solr}) ->
     case map_search(Type, Args) of
         undefined ->
@@ -171,8 +171,9 @@ do_startup(State) ->
     DefaultConnection = "http://127.0.0.1:8983/solr/" ++ z_convert:to_list(z_context:site(Context)) ++ "/",
     SolrUrl = m_config:get_value(?MODULE, solr, DefaultConnection, Context),
     SearchUrl = z_convert:to_list(SolrUrl) ++ "select",
+    MltUrl = z_convert:to_list(SolrUrl) ++ "mlt",
     UpdateUrl = z_convert:to_list(SolrUrl) ++ "update",
-    {ok, Solr} = esolr:start_link([{select_url, SearchUrl}, {update_url, UpdateUrl}]),
+    {ok, Solr} = esolr:start_link([{select_url, SearchUrl}, {update_url, UpdateUrl}, {morelikethis_url, MltUrl}]),
     
     AutoCommit = z_convert:to_integer(m_config:get_value(?MODULE, autocommit_time, 3000, Context)),
     esolr:set_auto_commit({time, AutoCommit}, Solr),

@@ -32,7 +32,8 @@
 
 %%API
 -export([start/0,start_link/0,start/1,start_link/1,
-         add/2,search/3,delete/2,commit/1,optimize/1,stop/1,set_auto_optimize/2,set_auto_commit/2]).
+         add/2,search/3,morelikethis/3,
+         delete/2,commit/1,optimize/1,stop/1,set_auto_optimize/2,set_auto_commit/2]).
 
 %%gen_server callbacks
 -export([init/1,handle_call/3,handle_cast/2,handle_info/2,terminate/2,code_change/3]).
@@ -40,6 +41,7 @@
 
 -define(ESOLR_DEFAULT_SELECTURL,"http://localhost:8983/solr/select").
 -define(ESOLR_DEFAULT_UPDATEURL,"http://localhost:8983/solr/update").
+-define(ESOLR_DEFAULT_MORELIKETHISURL,"http://localhost:8983/solr/mlt").
 -define(ESOLR_STATUS_OK,0).
 
 -define(ESOLR_DEFAULT_TIMEOUT,10*1000).  %10sec
@@ -54,6 +56,7 @@
 -record(esolr,
 	{update_url,   
 	 search_url,
+	 morelikethis_url, % more-like-this
 	 add_timeout,	
 	 delete_timeout,
 	 commit_timeout,
@@ -131,7 +134,10 @@ add(Docs, Pid) ->
 % AdditionalInfo = term()  
 search(Query,Options,Pid) ->
 	gen_server:call(Pid,{search,Query,Options},?ESOLR_MAX_SEARCH_TIMEOUT).
-	
+
+morelikethis(Query,Options,Pid) ->
+	gen_server:call(Pid,{morelikethis,Query,Options},?ESOLR_MAX_SEARCH_TIMEOUT).
+
 	
 % @doc  delete one or more documents. 
 % @spec delete(Del::Delete) -> Response
@@ -219,6 +225,10 @@ init(Options) ->
 					{value,{update_url,U}} -> U;
 					false -> ?ESOLR_DEFAULT_UPDATEURL
 				end,
+	MorelikethisUrl = case lists:keysearch(morelikethis_url,1,Options) of
+                          {value,{morelikethis_url,M}} -> M;
+                          false -> ?ESOLR_DEFAULT_MORELIKETHISURL
+				end,
 	AddTimeout = timeout_value(add_timeout,?ESOLR_MAX_ADD_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
 	CommitTimeout = timeout_value(commit_timeout,?ESOLR_MAX_COMMIT_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
 	OptimizeTimeout = timeout_value(optimize_timeout,?ESOLR_MAX_OPTIMIZE_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
@@ -226,7 +236,9 @@ init(Options) ->
 	DeleteTimeout = timeout_value(delete_timeout,?ESOLR_MAX_DELETE_TIMEOUT,?ESOLR_DEFAULT_TIMEOUT,Options),
 
 	inets:start(),
-	{ok,#esolr{update_url=UpdateUrl,search_url = SelectUrl, 
+	{ok,#esolr{update_url=UpdateUrl,
+               search_url = SelectUrl, 
+               morelikethis_url = MorelikethisUrl, 
 		add_timeout=AddTimeout,
 		commit_timeout=CommitTimeout,
 		optimize_timeout=OptimizeTimeout,
@@ -279,6 +291,13 @@ handle_call(optimize,From,State=#esolr{optimize_timeout=T}) ->
 	make_post_request(Request,{From,optimize},State,T);
 	
 handle_call({search,Query,Options},From,State=#esolr{search_url=URL,pending=P,search_timeout=Timeout}) ->	
+	RequestParams = encode_search(Query,Options),
+	SearchURL = lists:flatten([URL,"?wt=json&"|RequestParams]),
+	{ok,RequestId} = httpc:request(get,{SearchURL,[{"connection", "close"}]},[{timeout,Timeout}],[{sync,false}]),
+	Pendings = gb_trees:insert(RequestId,{From,search},P),
+	{noreply,State#esolr{pending=Pendings}};
+	
+handle_call({morelikethis,Query,Options},From,State=#esolr{morelikethis_url=URL,pending=P,search_timeout=Timeout}) ->	
 	RequestParams = encode_search(Query,Options),
 	SearchURL = lists:flatten([URL,"?wt=json&"|RequestParams]),
 	{ok,RequestId} = httpc:request(get,{SearchURL,[{"connection", "close"}]},[{timeout,Timeout}],[{sync,false}]),
@@ -454,10 +473,8 @@ encode_search_option({highlight,Highlight}) ->
 encode_search_option({facet,Field}) ->
 	["facet=on&facet.mincount=1&facet.field=",url_encode(Field)];
 
-encode_search_option({morelikethis,Fields,Count}) ->
-	["mlt=on&mlt.count=",integer_to_list(Count),"&mlt.fl=",Fields,
-     "&mlt.mindf=1&mlt.mintf=1"].
-
+encode_search_option({raw,Raw}) ->
+    Raw.
 
 encode_delete({id,Id})->
 	iolist_to_binary(xmerl:export_simple([{delete,[],[{id,[],[Id]}]}],xmerl_xml));
