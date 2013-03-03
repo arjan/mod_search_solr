@@ -164,6 +164,7 @@
 
         <!-- integers -->
         <dynamicField name="x_int_*" type="int" />
+        <dynamicField name="x_float_*" type="float" />
 
     </fields>
 
