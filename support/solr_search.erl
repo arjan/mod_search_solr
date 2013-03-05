@@ -14,7 +14,20 @@
 
 %% @doc Execute a query on the solr instance.
 search(Query, {Offset, PageLen}, Solr, Context) ->
-    do_search(search, Query, {Offset, PageLen}, Solr, Context).
+    case proplists:lookup(maxage, Query) of
+        {maxage, TTL} ->
+            Query1 = proplists:delete(maxage, Query),
+            lager:warning("cache: ~p", [cache]),
+            z_depcache:memo(fun() ->
+                                    do_search(search, Query1, {Offset, PageLen}, Solr, Context)
+                            end,
+                            {Query, Offset, PageLen}, %key
+                            TTL,
+                            Context);
+        none ->
+            do_search(search, Query, {Offset, PageLen}, Solr, Context)
+    end.
+
 
 do_search(SolrFunction, Query, {Offset, PageLen}, Solr, Context) ->
     Search = case z_notifier:first({solr_search, Query}, Context) of
