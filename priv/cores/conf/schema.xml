@@ -163,8 +163,8 @@
         <dynamicField name="x_*" type="text" stored="true" multiValued="true" />
 
         <!-- integers -->
-        <dynamicField name="x_int_*" type="int" />
-        <dynamicField name="x_float_*" type="float" />
+        <dynamicField name="x_int_*" type="int" multiValued="false" />
+        <dynamicField name="x_float_*" type="float" multiValued="false" />
 
     </fields>
 
