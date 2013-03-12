@@ -164,7 +164,7 @@ do_startup(State) ->
             solr_java:start_link(),
             %% Give some time to start up, churn churn
             timer:sleep(10000);
-        {ok, _Pid} ->
+        _Pid ->
             nop
     end,
 
