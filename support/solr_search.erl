@@ -158,6 +158,14 @@ map_search_field({cat_exclude, Cat}, _Context) ->
     {["-category:", as_category(Cat)],
      []};
 
+%% excludeobject=[id]
+%% Exlude things which have an edge to the given object
+map_search_field({excludeobject, Id}, _Context) when is_integer(Id) ->
+    map_search_field({excludeobject, [Id]}, _Context);
+map_search_field({excludeobject, [Id]}, _Context) ->
+    {["-o:", z_convert:to_list(Id)],
+     []};
+
 %% hasobject=[id]
 %% Give all things which have an outgoing edge to Id
 map_search_field({hasobject, Id}, _Context) when is_integer(Id) ->
