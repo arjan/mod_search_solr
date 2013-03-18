@@ -17,7 +17,6 @@ search(Query, {Offset, PageLen}, Solr, Context) ->
     case proplists:lookup(maxage, Query) of
         {maxage, TTL} ->
             Query1 = proplists:delete(maxage, Query),
-            lager:warning("cache: ~p", [cache]),
             z_depcache:memo(fun() ->
                                     do_search(search, Query1, {Offset, PageLen}, Solr, Context)
                             end,
