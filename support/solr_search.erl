@@ -213,6 +213,15 @@ map_search_field({is_featured, Bool}, _Context) ->
     {["+is_featured:", atom_to_list(z_convert:to_bool(Bool))],
      []};
 
+%% is_published or is_published={false,true} Filter on whether an item
+%% has the published flag set or not. Does NOT override the generic
+%% publication check which is always done. So mostly useful for
+%% limiting results for admin users.
+map_search_field({is_published, Bool}, _Context) ->
+    {["+is_published:", atom_to_list(z_convert:to_bool(Bool))],
+     []};
+
+
 %% upcoming
 %% Filter on items whose end date lies in the future
 map_search_field({upcoming, Boolean}, _Context) ->
