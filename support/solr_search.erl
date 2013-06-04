@@ -141,7 +141,7 @@ map_search_field({cat, Cats}, _Context) when is_list(Cats) ->
             case lists:filter(fun(X) -> not(empty_term(X)) end, Cats) of
                 [] -> {[], []};
                 Cats1 ->
-                    {["+(category:", string:join([as_category(C) || C <- Cats1], ", category:"), ")"], []}
+                    {["+(category:", string:join([as_category(C) || C <- Cats1], " category:"), ")"], []}
             end
     end;
 
