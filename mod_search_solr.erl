@@ -159,12 +159,14 @@ do_startup(State) ->
     Context=State#state.context,
     
     %% Start java
-    case whereis(solr_java) of
-        undefined ->
+    case whereis(solr_java) =:= undefined andalso
+        z_convert:to_bool(m_config:get_value(?MODULE, embedded, true, Context)) of
+        true ->
+            lager:warning("Starting embedded Solr instance."),
             solr_java:start_link(),
             %% Give some time to start up, churn churn
             timer:sleep(10000);
-        _Pid ->
+        false ->
             nop
     end,
 
