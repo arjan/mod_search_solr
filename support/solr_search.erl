@@ -255,7 +255,9 @@ map_search_field({query_id, QueryId}, Context) ->
 map_search_field({text, Text}, _Context) when Text =:= [] orelse Text =:= undefined orelse Text =:= <<>> ->
     {[], []};
 map_search_field({text, Text}, _Context) ->
-    {["+(", z_convert:to_list(Text),")"],
+    {["+(", z_convert:to_list(Text),")",
+      "title:", z_convert:to_list(Text), "^10"
+     ],
      []};
 
 %% sort=..
@@ -274,6 +276,14 @@ map_search_field({sort, Sort}, _Context) ->
 %%
 %% Solr-specific search options start here.
 %%
+
+map_search_field({pubdate_boost, true}, _Context) ->
+    {[],
+     [
+      {raw, "defType=edismax"},
+      {raw, "bf=recip(ms(NOW,publication_start),3.16e-11,1,1)^99"}
+     ]
+    };
 
 %% solrfield=field:value
 map_search_field({solr_field, [_, Value]}, _Context)
