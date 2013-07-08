@@ -75,7 +75,11 @@ handle_call(Message, _From, State) ->
 
 %% @doc Pivot-hook for putting document in solr.
 handle_cast({rsc_pivot_done, Id, _IsA}, State=#state{context=Context,solr=Solr}) ->
-    ok = solr_store:put(Id, Context, Solr),
+    case solr_store:put(Id, Context, Solr) of
+        ok -> nop;
+        {error, _} ->
+            ?zWarning("[mod_search_solr] Unable to index rsc_id: " ++ integer_to_list(Id), Context)
+    end,
     {noreply, State};
 
 handle_cast({rsc_delete, Id}, State=#state{context=Context,solr=Solr}) ->
