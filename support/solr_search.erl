@@ -258,7 +258,9 @@ map_search_field({text, Text}, _Context) ->
     {["+(", z_convert:to_list(Text),")",
       " title:(", z_convert:to_list(Text), ")"
      ],
-     []};
+     [{raw, ["spellcheck.q=", z_url:url_encode(Text),
+            "&spellcheck.collate=on"]}]
+    };
 
 %% sort=..
 %% Sort the result.
@@ -282,6 +284,13 @@ map_search_field({pubdate_boost, true}, _Context) ->
      [
       {raw, "defType=edismax"},
       {raw, "bf=recip(ms(NOW,publication_start),3.16e-11,1,1)^99"}
+     ]
+    };
+
+map_search_field({spellcheck, true}, _Context) ->
+    {[],
+     [
+      {raw, "spellcheck=on"}
      ]
     };
 
@@ -333,6 +342,13 @@ map_info({"highlighting", Dict}) ->
 map_info({"facet_counts", {obj, Dict}}) ->
     {"facet_fields", {obj, F}} = proplists:lookup("facet_fields", Dict),
     {facet_fields, {obj, [{K, list_to_proplist(V)} || {K,V} <- F]}};
+map_info({"spellcheck", {obj, [{"suggestions", Props}]}}) ->
+    case lists:reverse(Props) of
+        [] ->
+            {spellcheck, false};
+        [Suggestion|_] ->
+            {spellcheck, Suggestion}
+    end;
 map_info(_X) ->
     ?DEBUG("Unknown extended-info returned from solr!"),
     ?DEBUG(_X),
