@@ -256,7 +256,7 @@ map_search_field({text, Text}, _Context) when Text =:= [] orelse Text =:= undefi
     {[], []};
 map_search_field({text, Text}, _Context) ->
     {["+(", z_convert:to_list(Text),")",
-      "title:", z_convert:to_list(Text), "^10"
+      " title:(", z_convert:to_list(Text), ")"
      ],
      []};
 
