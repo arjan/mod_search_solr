@@ -38,7 +38,7 @@ convert(Id, Context) ->
     Date = fun(Name) -> case proplists:get_value(Name, All) of
                             undefined -> undefined;
                             ?ST_JUTTEMIS -> "9999-08-17T12:00:00Z";
-                            D -> z_convert:to_isotime(D)
+                            D -> to_isotime(D)
                         end
            end,
 
@@ -119,3 +119,8 @@ first_trans({trans, [{_, Text}|_]}) ->
 first_trans(X) ->
     X.
 
+
+to_isotime(DateTime={D,_}) when D =< {1970, 1, 1}->
+    z_convert:to_list(z_dateformat:format(DateTime, "Y-m-d\\TH:i:s\\Z", en));
+to_isotime(DateTime) ->
+    z_convert:to_list(z_dateformat:format(hd(calendar:local_time_to_universal_time_dst(DateTime)), "Y-m-d\\TH:i:s\\Z", en)).
