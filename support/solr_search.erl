@@ -12,17 +12,23 @@
          list_to_proplist/1
         ]).
 
+-define(CACHE_SIZE, 10000).
+
 %% @doc Execute a query on the solr instance.
 search(Query, {Offset, PageLen}, Solr, Context) ->
     case proplists:lookup(maxage, Query) of
         {maxage, TTL} ->
             Query1 = proplists:delete(maxage, Query),
-            z_depcache:memo(fun() ->
-                                    do_search(search, Query1, {Offset, PageLen}, Solr, Context)
-                            end,
-                            {Query, Offset, PageLen}, %key
-                            TTL,
-                            Context);
+            AllResult = z_depcache:memo(fun() ->
+                                                do_search(search, Query1, {1, ?CACHE_SIZE}, Solr, Context)
+                                        end,
+                                        Query, %key
+                                        TTL,
+                                        Context),
+            AllResult#search_result{
+              result=lists:sublist(AllResult#search_result.result, Offset, PageLen),
+              page=mochinum:int_ceil(Offset / PageLen)
+             };
         none ->
             do_search(search, Query, {Offset, PageLen}, Solr, Context)
     end.
