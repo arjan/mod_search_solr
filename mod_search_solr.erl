@@ -19,13 +19,15 @@
 -export([
     pid_observe_search_query/3,
     pid_observe_rsc_pivot_done/3,
-    pid_observe_rsc_delete/3
+    pid_observe_rsc_delete/3,
+    clear_index/1
 ]).
 
 -include("zotonic.hrl").
 
 -record(state, {context, solr, default_search, java_pid}).
 
+-define(DEFAULT_CONNECTION, "http://127.0.0.1:8983/solr/").
 
 %%====================================================================
 %% API
@@ -46,6 +48,19 @@ pid_observe_rsc_delete(Pid, Msg, _Context) ->
     gen_server:cast(Pid, Msg).
 
 
+%% Clear the search index
+clear_index(Context) ->
+    DefaultConnection = ?DEFAULT_CONNECTION ++ z_convert:to_list(z_context:site(Context)) ++ "/",
+    SolrUrl = m_config:get_value(?MODULE, solr, DefaultConnection, Context),
+    Curl = fun(Link)->
+        Cmd = "curl -X GET \"" ++ Link ++ "\"",
+        os:cmd(Cmd)
+    end,
+    Curl(SolrUrl ++ "update?stream.body=<delete><query>*:*</query></delete>"),
+    Curl(SolrUrl ++ "update?stream.body=<commit/>"),
+    Curl(SolrUrl ++ "update?stream.body=<optimize/>").
+
+    
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -174,7 +189,7 @@ do_startup(State) ->
             nop
     end,
 
-    DefaultConnection = "http://127.0.0.1:8983/solr/" ++ z_convert:to_list(z_context:site(Context)) ++ "/",
+    DefaultConnection = ?DEFAULT_CONNECTION ++ z_convert:to_list(z_context:site(Context)) ++ "/",
     SolrUrl = m_config:get_value(?MODULE, solr, DefaultConnection, Context),
     SearchUrl = z_convert:to_list(SolrUrl) ++ "select",
     MltUrl = z_convert:to_list(SolrUrl) ++ "mlt",
