@@ -50,8 +50,7 @@ pid_observe_rsc_delete(Pid, Msg, _Context) ->
 
 %% Clear the search index
 clear_index(Context) ->
-    DefaultConnection = ?DEFAULT_CONNECTION ++ z_convert:to_list(z_context:site(Context)) ++ "/",
-    SolrUrl = m_config:get_value(?MODULE, solr, DefaultConnection, Context),
+    SolrUrl = solr_url(Context),
     Curl = fun(Link)->
         Cmd = "curl -X GET \"" ++ Link ++ "\"",
         os:cmd(Cmd)
@@ -189,8 +188,7 @@ do_startup(State) ->
             nop
     end,
 
-    DefaultConnection = ?DEFAULT_CONNECTION ++ z_convert:to_list(z_context:site(Context)) ++ "/",
-    SolrUrl = m_config:get_value(?MODULE, solr, DefaultConnection, Context),
+    SolrUrl = solr_url(Context),
     SearchUrl = z_convert:to_list(SolrUrl) ++ "select",
     MltUrl = z_convert:to_list(SolrUrl) ++ "mlt",
     UpdateUrl = z_convert:to_list(SolrUrl) ++ "update",
@@ -203,3 +201,8 @@ do_startup(State) ->
     %solr_search:match(1, {0, 1}, Solr, Context),
     
     State#state{solr=Solr}.
+
+
+solr_url(Context) ->
+    DefaultConnection = ?DEFAULT_CONNECTION ++ z_convert:to_list(z_context:site(Context)) ++ "/",
+    z_convert:to_list(m_config:get_value(?MODULE, solr, DefaultConnection, Context)).
