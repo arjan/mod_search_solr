@@ -96,7 +96,7 @@ handle_cast({rsc_pivot_done, Id, _IsA}, State=#state{context=Context,solr=Solr})
     end,
     {noreply, State};
 
-handle_cast({rsc_delete, Id, _IsA}, State=#state{context=Context,solr=Solr}) ->
+handle_cast(#rsc_delete{id=Id}, State=#state{context=Context,solr=Solr}) ->
     ok = solr_store:delete(Id, Context, Solr),
     {noreply, State};
 
