@@ -38,6 +38,7 @@ convert(Id, Context) ->
     Date = fun(Name) -> case proplists:get_value(Name, All) of
                             undefined -> "9999-08-17T12:00:00Z";
                             ?ST_JUTTEMIS -> "9999-08-17T12:00:00Z";
+                            {{9999,_,_},{_,_,_}} -> "9999-08-17T12:00:00Z";
                             D -> to_isotime(D)
                         end
            end,
