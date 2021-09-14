@@ -1,12 +1,11 @@
 %% @author Arjan Scherpenisse <arjan@scherpenisse.net>
-%% @copyright 2010 Arjan Scherpenisse
-%% @date 2010-03-31
+%% @copyright 2010-2021 Arjan Scherpenisse
 %% @doc Store Zotonic rsc documents in Solr.
 -module(solr_store).
 
 -export([put/3, delete/3]).
 
--include("zotonic.hrl").
+-include_lib("zotonic_core/include/zotonic.hrl").
 
 
 put(Id, Context, Solr) ->

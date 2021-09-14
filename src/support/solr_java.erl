@@ -6,7 +6,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 -export([start_link/0]).
 
--include_lib("zotonic.hrl").
+-include_lib("zotonic_core/include/zotonic.hrl").
 -define(DEFAULT_RESTART_TIMEOUT, 3000).
 
 -record(state, {script, port=undefined, timeout=?DEFAULT_RESTART_TIMEOUT}).
@@ -22,11 +22,7 @@ start_link() ->
 
 init([]) ->
     process_flag(trap_exit, true),
-
-    Info = mod_search_solr:module_info(),
-    Fn = proplists:get_value(source, proplists:get_value(compile, Info)),
-    Script = filename:join([filename:dirname(Fn), "priv", "solr", "start.sh"]),
-
+    Script = filename:join([ code:priv_dir(zotonic_mod_search_solr) , "solr", "start.sh" ]),
     {ok, #state{script=Script}, 0}.
 
 handle_call(Message, _From, State) ->

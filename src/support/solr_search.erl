@@ -4,7 +4,7 @@
 %% @doc Map zotonic "Query search-model" syntax onto solr's. See http://zotonic.com/documentation/761/the-query-search-model
 -module(solr_search).
 
--include("zotonic.hrl").
+-include_lib("zotonic_core/include/zotonic.hrl").
 
 -export([
          search/4,
@@ -117,19 +117,22 @@ map_search(Query, Context) ->
 
 %% @doc Return the lucene query syntax parts that add the the published check to the search query.
 add_publication_check(Context) ->
-    case z_acl:can_see(Context) of
-        ?ACL_VIS_USER ->
+    case z_acl:is_admin(Context) of
+        true ->
             %% Admin or supervisor, can see everything
             [];
-        ?ACL_VIS_PUBLIC -> 
-            %% Anonymous users can only see public published content
-            ["+visible_for:0 +is_published:true",
-             "+publication_start:[* TO " ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ "]",
-             "+publication_end:[" ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ " TO *]"];
-        _ -> %% ?ACL_VIS_COMMUNITY -> 
-            ["+(visible_for:0 OR visible_for:1) +is_published:true",
-             "+publication_start:[* TO " ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ "]",
-             "+publication_end:[" ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ " TO *]"]
+        false ->
+            case z_auth:is_auth(Context) of
+                true ->
+                    ["+(visible_for:0 OR visible_for:1) +is_published:true",
+                     "+publication_start:[* TO " ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ "]",
+                     "+publication_end:[" ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ " TO *]"];
+                false ->
+                    %% Anonymous users can only see public published content
+                    ["+visible_for:0 +is_published:true",
+                     "+publication_start:[* TO " ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ "]",
+                     "+publication_end:[" ++ z_convert:to_list(z_convert:to_isotime(erlang:localtime())) ++ " TO *]"]
+            end
     end.
 
 

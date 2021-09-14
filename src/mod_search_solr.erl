@@ -1,6 +1,5 @@
 %% @author Arjan Scherpenisse <arjan@scherpenisse.net>
-%% @copyright 2010 Arjan Scherpenisse
-%% @date 2009-06-09
+%% @copyright 2010-2021 Arjan Scherpenisse
 %% @doc Defines Solr queries for extended content searches in Zotonic.
 
 -module(mod_search_solr).
@@ -23,7 +22,7 @@
     clear_index/1
 ]).
 
--include("zotonic.hrl").
+-include_lib("zotonic_core/include/zotonic.hrl").
 
 -record(state, {context, solr, default_search, java_pid}).
 
@@ -59,7 +58,7 @@ clear_index(Context) ->
     Curl(SolrUrl ++ "update?stream.body=<commit/>"),
     Curl(SolrUrl ++ "update?stream.body=<optimize/>").
 
-    
+
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
@@ -71,10 +70,7 @@ clear_index(Context) ->
 %% @doc Initiates the server.
 init(Args) ->
     {context, Context} = proplists:lookup(context, Args),
-    
-    DefaultSearch = z_convert:to_bool(m_config:get_value(?MODULE, default_search, false, Context)),
-
-    %% Ready
+    DefaultSearch = m_config:get_boolean(?MODULE, default_search, false, Context),
     {ok, #state{context=z_context:new(Context), default_search=DefaultSearch}, 0}.
 
 
@@ -175,7 +171,6 @@ map_search(_, _)                                     -> undefined.
 
 do_startup(State) ->
     Context=State#state.context,
-    
     %% Start java
     case whereis(solr_java) =:= undefined andalso
         z_convert:to_bool(m_config:get_value(?MODULE, embedded, true, Context)) of
@@ -193,13 +188,13 @@ do_startup(State) ->
     MltUrl = z_convert:to_list(SolrUrl) ++ "mlt",
     UpdateUrl = z_convert:to_list(SolrUrl) ++ "update",
     {ok, Solr} = esolr:start_link([{select_url, SearchUrl}, {update_url, UpdateUrl}, {morelikethis_url, MltUrl}]),
-    
+
     AutoCommit = z_convert:to_integer(m_config:get_value(?MODULE, autocommit_time, 3000, Context)),
     esolr:set_auto_commit({time, AutoCommit}, Solr),
 
     %% Test the connection.. this will crash when there is no valid connection
     %solr_search:match(1, {0, 1}, Solr, Context),
-    
+
     State#state{solr=Solr}.
 
 

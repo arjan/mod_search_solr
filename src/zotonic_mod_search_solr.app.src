@@ -1,0 +1,13 @@
+{application, zotonic_mod_search_solr, [
+    {description, "Use Solr for extended content searches in Zotonic."},
+    {vsn, {file, "../../VERSION"}},
+    {registered, []},
+    {applications, [kernel, stdlib, jobs, zotonic_core]},
+    {env, []},
+    {modules, []},
+    {doc, "doc"},
+    {licenses, ["Apache 2.0"]},
+    {links, [
+        {"GitHub", "https://github.com/zotonic/zotonic_mod_search_solr"}
+    ]}
+]}.
